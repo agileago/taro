@@ -1,4 +1,4 @@
-import { isFunction, isUndefined, Shortcuts } from '@tarojs/shared'
+import { isArray, isFunction, isUndefined, Shortcuts } from '@tarojs/shared'
 
 import {
   CUSTOM_WRAPPER,
@@ -8,7 +8,7 @@ import {
 } from '../constants'
 import { options } from '../options'
 import { perf } from '../perf'
-import { customWrapperCache } from '../utils'
+import { customWrapperCache, isComment } from '../utils'
 import { TaroElement } from './element'
 
 import type { Func, HydratedData, MpInstance, UpdatePayload, UpdatePayloadValue } from '../interface'
@@ -28,6 +28,10 @@ function findCustomWrapper (root: TaroRootElement, dataPathArr: string[]) {
       .replace(/\bcn\b/g, 'childNodes')
 
     currentData = currentData[key]
+
+    if (isArray(currentData)) {
+      currentData = currentData.filter(el => !isComment(el))
+    }
 
     if (isUndefined(currentData)) return true
 
@@ -147,9 +151,9 @@ export class TaroRootElement extends TaroElement {
         }
       }
 
-      const customWrpperCount = customWrapperMap.size
+      const customWrapperCount = customWrapperMap.size
       const isNeedNormalUpdate = Object.keys(normalUpdate).length > 0
-      const updateArrLen = customWrpperCount + (isNeedNormalUpdate ? 1 : 0)
+      const updateArrLen = customWrapperCount + (isNeedNormalUpdate ? 1 : 0)
       let executeTime = 0
 
       const cb = () => {
@@ -161,7 +165,7 @@ export class TaroRootElement extends TaroElement {
       }
 
       // custom-wrapper setData
-      if (customWrpperCount) {
+      if (customWrapperCount) {
         customWrapperMap.forEach((data, ctx) => {
           if (process.env.NODE_ENV !== 'production' && options.debug) {
             // eslint-disable-next-line no-console

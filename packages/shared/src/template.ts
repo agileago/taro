@@ -78,7 +78,6 @@ const weixinAdapter: IAdapter = {
 export class BaseTemplate {
   protected exportExpr = 'module.exports ='
   protected isSupportRecursive: boolean
-  protected supportXS = false
   protected miniComponents: Components
   protected thirdPartyPatcher: Record<string, Record<string, string>> = {}
   protected modifyCompProps?: (compName: string, target: Record<string, string>) => Record<string, string>
@@ -86,7 +85,7 @@ export class BaseTemplate {
   protected modifyLoopContainer?: (children: string, nodeName: string) => string
   protected modifyTemplateResult?: (res: string, nodeName: string, level: number, children: string) => string
   protected modifyThirdPartyLoopBody?: (child: string, nodeName: string) => string
-
+  public supportXS = false
   public Adapter = weixinAdapter
   /** 组件列表 */
   public internalComponents = internalComponents
@@ -258,7 +257,7 @@ export class BaseTemplate {
 
   protected buildComponentTemplate (comp: Component, level: number) {
     return this.focusComponents.has(comp.nodeName)
-      ? this.buildFocusComponentTemplte(comp, level)
+      ? this.buildFocusComponentTemplate(comp, level)
       : this.buildStandardComponentTemplate(comp, level)
   }
 
@@ -293,7 +292,7 @@ export class BaseTemplate {
     return children
   }
 
-  protected buildFocusComponentTemplte (comp: Component, level: number) {
+  protected buildFocusComponentTemplate (comp: Component, level: number) {
     const children = this.getChildren(comp, level)
     const nodeName = comp.nodeName
     const nodeAlias = comp.nodeAlias

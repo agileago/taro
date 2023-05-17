@@ -68,6 +68,8 @@ export interface PageInstance extends PageLifeCycle {
   path?: string
   /** 页面的组件选项 */
   options?: Record<string, unknown>
+  /** 页面渲染引擎类型 */
+  renderer?: 'webview' | 'skyline'
 }
 
 interface Show {
@@ -83,7 +85,9 @@ export interface AppInstance extends Show {
   onError? (error: string): void
   onLaunch? (options?: Record<string, unknown>): void
   onPageNotFound? (res: any): void
+  onUnhandledRejection? (error: any): void
   onShow?(options?: Record<string, unknown>): void
   unmount? (id: string, cb?: () => void): void
   taroGlobalData?: Record<any, any>
+  config?: Record<any, any>
 }

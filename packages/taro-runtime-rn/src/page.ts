@@ -1,6 +1,6 @@
-import { getCurrentRoute, PageProvider } from '@tarojs/router-rn'
+import { getCurrentRoute, isTabPage, PageProvider } from '@tarojs/router-rn'
 import { Component, Context, createContext, createElement, createRef, forwardRef, RefObject } from 'react'
-import { AppState, Dimensions, EmitterSubscription, NativeEventSubscription, RefreshControl, ScrollView } from 'react-native'
+import { AppState, Dimensions, EmitterSubscription, RefreshControl, ScrollView } from 'react-native'
 
 import { isClassComponent } from './app'
 import { Current } from './current'
@@ -8,7 +8,7 @@ import { eventCenter } from './emmiter'
 import EventChannel from './EventChannel'
 import { Instance, PageInstance } from './instance'
 import { BackgroundOption, BaseOption, CallbackResult, HooksMethods, PageConfig, ScrollOption, TextStyleOption } from './types/index'
-import { EMPTY_OBJ, errorHandler, incrementId, isArray, isFunction, successHandler } from './utils'
+import { EMPTY_OBJ, errorHandler, getPageStr, incrementId, isArray, isFunction, successHandler } from './utils'
 
 const compId = incrementId()
 
@@ -40,7 +40,6 @@ function getLifecyle (instance, lifecyle) {
 
 function safeExecute (path: string, lifecycle: keyof Instance, ...args: unknown[]) {
   const instance = instances.get(path)
-
   if (instance == null) {
     return
   }
@@ -65,9 +64,13 @@ export let PageContext: Context<string> = EMPTY_OBJ
 let appState = AppState.currentState
 
 AppState.addEventListener('change', (nextAppState) => {
-  const { page } = Current
+  const { page, app, router } = Current
   if (!page) return
   if (appState.match(/inactive|background/) && nextAppState === 'active') {
+    app?.onShow && app.onShow({
+      path: router?.path,
+      query: router?.params
+    })
     if (!page.__isReactComponent && page.__safeExecute) {
       page.__safeExecute('componentDidShow')
     } else if (page.onShow) {
@@ -80,6 +83,7 @@ AppState.addEventListener('change', (nextAppState) => {
     } else if (page.onHide) {
       page.onHide()
     }
+    app?.onHide && app.onHide()
   }
   appState = nextAppState
 })
@@ -122,7 +126,6 @@ export function createPageConfig (Page: any, pageConfig: PageConfig): any {
       unSubscribleFocus: any
       unSubscribleTabPress: any
       pageId: string
-      appStateSubscription: NativeEventSubscription | undefined
       dimensionsSubscription: EmitterSubscription | undefined
       isPageReady: boolean
 
@@ -132,10 +135,10 @@ export function createPageConfig (Page: any, pageConfig: PageConfig): any {
         const backgroundTextStyle = pageConfig.backgroundTextStyle || globalAny.__taroAppConfig?.appConfig?.window?.backgroundTextStyle || 'dark'
         this.state = {
           refreshing: false, // 刷新指示器
-          appState: AppState.currentState,
           textColor: refreshStyle.textColor || (backgroundTextStyle === 'dark' ? '#000000' : '#ffffff'),
           backgroundColor: refreshStyle.backgroundColor || '#ffffff'
         }
+        appState = AppState.currentState
         this.screenRef = createRef<Instance>()
         this.pageScrollView = createRef()
         this.setPageInstance()
@@ -155,6 +158,12 @@ export function createPageConfig (Page: any, pageConfig: PageConfig): any {
         eventCenter.on('__taroPullDownRefresh', this.pullDownRefresh, this)
         eventCenter.on('__taroPageScrollTo', this.pageToScroll, this)
         eventCenter.on('__taroSetRefreshStyle', this.setRefreshStyle, this)
+        
+        // 如果是tabbar页面，因为tabbar是懒加载的，第一次点击事件还未监听，不会触发，初始化触发一下
+        const lazy = globalAny.__taroAppConfig?.appConfig?.rn?.tabOptions?.lazy ?? true
+        if(isTabPage() && lazy){
+          this.onTabItemTap()
+        }
       }
 
       componentWillUnmount () {
@@ -274,7 +283,7 @@ export function createPageConfig (Page: any, pageConfig: PageConfig): any {
       }
 
       pullDownRefresh = (path, refresh) => {
-        if (path === pagePath) {
+        if (getPageStr(path) === getPageStr(pagePath)) {
           this.setState({ refreshing: refresh })
         }
       }
@@ -288,7 +297,7 @@ export function createPageConfig (Page: any, pageConfig: PageConfig): any {
       }
 
       pageToScroll = ({ path = '', scrollTop = 0 }) => {
-        if (path === pagePath) {
+        if (getPageStr(path) === getPageStr(pagePath)) {
           this.pageScrollView?.current?.scrollTo({ x: 0, y: scrollTop, animated: true })
         }
       }
@@ -381,8 +390,8 @@ export function createPageConfig (Page: any, pageConfig: PageConfig): any {
         let result: Record<string, unknown> = {}
         for (let i = 0; i < tabBar.list.length; i++) {
           const item = tabBar.list[i]
-          const path = item.pagePath.startsWith('/') ? item.pagePath : `/${item.pagePath}`
-          if (path === itemPath) {
+          const path = item.pagePath.replace(/^\//, '') || ''
+          if (getPageStr(path) === getPageStr(itemPath)) {
             result = {
               index: i,
               pagePath: path,

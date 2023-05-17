@@ -8,6 +8,7 @@ import { isArray, isFunction, isUndefined } from '@tarojs/shared'
 import {
   inject,
   onMounted,
+  onUnmounted,
   ref
 } from 'vue'
 
@@ -16,8 +17,10 @@ function createTaroHook (lifecycle: keyof PageLifeCycle | keyof AppInstance) {
     const id = inject<string>('id')!
     const fnRef = ref(fn)
 
+    let inst: any
+    let callback
     onMounted(() => {
-      let inst: any = getPageInstance(id)
+      inst = getPageInstance(id)
       if (inst === undefined) {
         inst = Object.create({
           $options: {}
@@ -26,7 +29,7 @@ function createTaroHook (lifecycle: keyof PageLifeCycle | keyof AppInstance) {
       }
       inst = inst.$options
 
-      const callback = (...args: any) => fnRef.value(...args)
+      callback = (...args: any) => fnRef.value(...args)
       const currentCallback = inst[lifecycle]
 
       if (isUndefined(currentCallback)) {
@@ -37,12 +40,32 @@ function createTaroHook (lifecycle: keyof PageLifeCycle | keyof AppInstance) {
         inst[lifecycle] = [...currentCallback, callback]
       }
     })
+
+    onUnmounted(() => {
+      if (!inst || !callback) {
+        return
+      }
+      const list = inst![lifecycle]
+      if (list === callback) {
+        inst[lifecycle] = undefined
+      } else if (isArray(list)) {
+        inst[lifecycle] = list.filter(item => item !== callback)
+      }
+      inst = null
+      callback = null
+    })
   }
 }
 
 /** LifeCycle */
 export const useDidShow = createTaroHook('onShow')
 export const useDidHide = createTaroHook('onHide')
+
+/** App */
+export const useError = createTaroHook('onError')
+export const useUnhandledRejection = createTaroHook('onUnhandledRejection')
+export const useLaunch = createTaroHook('onLaunch')
+export const usePageNotFound = createTaroHook('onPageNotFound')
 
 /** Page */
 export const useLoad = createTaroHook('onLoad')

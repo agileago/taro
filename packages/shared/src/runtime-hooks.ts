@@ -202,7 +202,7 @@ type ITaroHooks = {
   /** 用于修改传递给小程序 Page 构造器的对象 */
   modifyPageObject: (config: Record<any, any>) => void
   /** H5 下拉刷新 wrapper */
-  createPullDownComponent: (el, path: string, framework, customWrapper?: any) => void
+  createPullDownComponent: (el, path: string, framework, customWrapper?: any, stampId?: string) => void
   /** H5 获取原生 DOM 对象 */
   getDOMNode: (instance) => any
   /**
@@ -231,7 +231,11 @@ type ITaroHooks = {
   /** 用于修改 Taro DOM 事件对象 */
   modifyTaroEvent: (event, element) => void
 
+  dispatchTaroEvent: (event, element) => void 
+  dispatchTaroEventFinish: (event, element) => void
+
   modifyDispatchEvent: (event, element) => void
+  injectNewStyleProperties: (styleProperties: string[]) => void
   initNativeApi: (taro: Record<string, any>) => void
   patchElement: (node) => void
 }
@@ -301,11 +305,19 @@ export const hooks = new TaroHooks<ITaroHooks>({
       // 有些小程序的事件对象的某些属性只读
       this.call('modifyMpEvent', e)
     } catch (error) {
-      console.warn('[Taro modifyMpEvent hook Error]: ', error)
+      console.warn('[Taro modifyMpEvent hook Error]: ' + error?.message)
     }
   }),
 
+  injectNewStyleProperties: TaroHook(HOOK_TYPE.SINGLE),
+
   modifyTaroEvent: TaroHook(HOOK_TYPE.MULTI),
+  
+  dispatchTaroEvent: TaroHook(HOOK_TYPE.SINGLE, (e, node) => {
+    node.dispatchEvent(e)
+  }),
+
+  dispatchTaroEventFinish: TaroHook(HOOK_TYPE.MULTI),
 
   modifyDispatchEvent: TaroHook(HOOK_TYPE.MULTI),
 

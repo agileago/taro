@@ -4,6 +4,7 @@ import {
   CATCH_VIEW,
   CATCHMOVE,
   CLASS,
+  EVENT_CALLBACK_RESULT,
   FOCUS,
   ID,
   PROPERTY_THRESHOLD,
@@ -300,10 +301,11 @@ export class TaroElement extends TaroNode {
   }
 
   public getElementsByClassName (className: string): TaroElement[] {
+    const classNames = className.trim().split(/\s+/)
+  
     return treeToArray(this, (el) => {
       const classList = el.classList
-      const classNames = className.trim().split(/\s+/)
-      return classNames.every(c => classList.has(c))
+      return classNames.every(c => classList.contains(c))
     })
   }
 
@@ -327,6 +329,10 @@ export class TaroElement extends TaroNode {
       }
       if ((result === false || event._end) && cancelable) {
         event.defaultPrevented = true
+      }
+
+      if (!isUndefined(result) && event.mpEvent) {
+        event.mpEvent[EVENT_CALLBACK_RESULT] = result
       }
 
       if (event._end && event._stop) {

@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Component, h, ComponentInterface, Prop, Event, EventEmitter, Watch, Host, Element, State } from '@stencil/core'
 import classNames from 'classnames'
 import type ISwiper from 'swiper'
@@ -119,18 +118,21 @@ export class Swiper implements ComponentInterface {
   watchAutoplay (newVal) {
     if (!this.isWillLoadCalled || !this.swiper) return
 
-    if (this.swiper.autoplay.running === newVal) return
+    const swiperAutoplay = this.swiper.autoplay
+    if (swiperAutoplay) {
+      if (swiperAutoplay.running === newVal) return
 
-    if (newVal) {
-      if (this.swiper.params && typeof this.swiper.params.autoplay === 'object') {
-        if (this.swiper.params.autoplay.disableOnInteraction === true) {
-          this.swiper.params.autoplay.disableOnInteraction = false
+      if (newVal) {
+        if (this.swiper.params && typeof this.swiper.params.autoplay === 'object') {
+          if (this.swiper.params.autoplay.disableOnInteraction === true) {
+            this.swiper.params.autoplay.disableOnInteraction = false
+          }
+          this.swiper.params.autoplay.delay = this.interval
         }
-        this.swiper.params.autoplay.delay = this.interval
+        swiperAutoplay.start()
+      } else {
+        swiperAutoplay.stop()
       }
-      this.swiper.autoplay.start()
-    } else {
-      this.swiper.autoplay.stop()
     }
   }
 
@@ -177,6 +179,14 @@ export class Swiper implements ComponentInterface {
     }
   }
 
+  @Watch("displayMultipleItems")
+  watchDisplayMultipleItems () {
+    if (this.swiper) {
+      this.swiper.destroy()
+      this.handleInit()
+    }
+  }
+
   @State() observer: MutationObserver
   @State() observerFirst: MutationObserver
   @State() observerLast: MutationObserver
@@ -189,7 +199,7 @@ export class Swiper implements ComponentInterface {
     this.handleInit()
     if (!this.swiper || !this.circular) return
 
-    const wrapper = this.swiper.$wrapperEl[0]
+    const wrapper = this.swiper.$wrapperEl?.[0]
     this.observer = new MutationObserver(this.handleSwiperLoopListen)
 
     this.observer.observe(wrapper, {
@@ -199,8 +209,8 @@ export class Swiper implements ComponentInterface {
 
   componentWillUpdate () {
     if (!this.swiper) return
-    if (this.autoplay && !this.swiper.autoplay.running) {
-      this.swiper.autoplay.start()
+    if (this.autoplay && !this.swiper.autoplay?.running) {
+      this.swiper.autoplay?.start()
     }
     this.swiper.update() // 更新子元素
   }
@@ -222,7 +232,7 @@ export class Swiper implements ComponentInterface {
     this.observerLast?.disconnect && this.observerLast.disconnect()
     this.observerFirst = new MutationObserver(this.handleSwiperLoop)
     this.observerLast = new MutationObserver(this.handleSwiperLoop)
-    const wrapper = this.swiper.$wrapperEl[0]
+    const wrapper = this.swiper.$wrapperEl?.[0]
     const list = wrapper.querySelectorAll('taro-swiper-item-core:not(.swiper-slide-duplicate)')
     if (list.length >= 1) {
       this.observerFirst.observe(list[0], {
@@ -236,13 +246,17 @@ export class Swiper implements ComponentInterface {
   }
 
   handleSwiperLoop = debounce(() => {
-    if (this.swiper && this.circular) {
-      // @ts-ignore
-      this.swiper.loopDestroy()
-      // @ts-ignore
-      this.swiper.loopCreate()
+    if (!this.swiper || !this.circular) return
+    const swiper = this.swiper as any // Note: loop 相关的方法 swiper 未声明
+    const duplicates = this.swiperWrapper?.querySelectorAll('.swiper-slide-duplicate') || []
+    if (duplicates.length < 2) {
+      // Note: 循环模式下，但是前后垫片未注入
+      swiper.loopDestroy()
+      swiper.loopCreate()
+    } else {
+      swiper.loopFix()
     }
-  }, 500)
+  }, 50)
 
   handleSwiperSize = debounce(() => {
     if (this.swiper && !this.circular) {
@@ -269,7 +283,7 @@ export class Swiper implements ComponentInterface {
       direction: vertical ? 'vertical' : 'horizontal',
       loop: circular,
       slidesPerView: displayMultipleItems,
-      initialSlide: current,
+      initialSlide: circular ? current + 1 : current,
       speed: duration,
       observer: true,
       observeParents: true,
@@ -278,11 +292,16 @@ export class Swiper implements ComponentInterface {
         slideTo () {
           that.current = this.realIndex
         },
-         // slideChange 事件在 swiper.slideTo 改写 current 时不触发，因此用 slideChangeTransitionStart 事件代替
-         slideChangeTransitionStart (_swiper: ISwiper) {
-          if (that.circular) {
-            if (_swiper.isBeginning || _swiper.isEnd) {
-              _swiper.slideToLoop(this.realIndex, 0) // 更新下标
+        // Note: slideChange 事件在 swiper.slideTo 改写 current 时不触发，因此用 slideChangeTransitionEnd 事件代替
+        slideChangeTransitionEnd () {
+          /** Note: 此处不能使用 slideChangeTransitionStart 事件
+           * - 因为在它触发时 swiper 各个参数并未准备好，将会导致错误的事件抛出；
+           * - 同时抛出 change 事件会导致 current 监听被打乱 swiper 的生命周期；
+           * - 模式与 slideTo 结合时，会导致动画会被中断、slider 展示不完整或衔接模式错误等问题。
+           */
+          if (circular) {
+            if (this.isBeginning || this.isEnd) {
+              this.slideToLoop(this.realIndex, 0) // 更新下标
               return
             }
           }

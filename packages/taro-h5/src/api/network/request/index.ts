@@ -1,6 +1,8 @@
 import 'whatwg-fetch'
+import 'abortcontroller-polyfill/dist/abortcontroller-polyfill-only'
 
 import Taro from '@tarojs/api'
+import { isFunction } from '@tarojs/shared'
 import jsonpRetry from 'jsonp-retry'
 
 import { serializeParams } from '../../../utils'
@@ -41,13 +43,13 @@ function _request (options) {
       .then(data => {
         res.statusCode = 200
         res.data = data
-        typeof success === 'function' && success(res)
-        typeof complete === 'function' && complete(res)
+        isFunction(success) && success(res)
+        isFunction(complete) && complete(res)
         return res
       })
       .catch(err => {
-        typeof fail === 'function' && fail(err)
-        typeof complete === 'function' && complete(res)
+        isFunction(fail) && fail(err)
+        isFunction(complete) && complete(res)
         return Promise.reject(err)
       })
   }
@@ -56,7 +58,7 @@ function _request (options) {
   params.cache = options.cache || 'default'
   if (methodUpper === 'GET' || methodUpper === 'HEAD') {
     url = generateRequestUrlWithParams(url, options.data)
-  } else if (typeof options.data === 'object') {
+  } else if (['[object Array]', '[object Object]'].indexOf(Object.prototype.toString.call(options.data)) >= 0) {
     options.header = options.header || {}
 
     const keyOfContentType = Object.keys(options.header).find(item => item.toLowerCase() === 'content-type')
@@ -81,12 +83,23 @@ function _request (options) {
   if (options.mode) {
     params.mode = options.mode
   }
+  let timeoutTimer: ReturnType<typeof setTimeout> | null = null
   if (options.signal) {
     params.signal = options.signal
+  } else if (typeof options.timeout === 'number') {
+    const controller = new window.AbortController()
+    params.signal = controller.signal
+    timeoutTimer = setTimeout(function () {
+      controller.abort()
+    }, options.timeout)
   }
   params.credentials = options.credentials
   return fetch(url, params)
     .then(response => {
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer)
+        timeoutTimer = null
+      }
       if (!response) {
         const errorResponse = { ok: false }
         throw errorResponse
@@ -113,13 +126,17 @@ function _request (options) {
     })
     .then(data => {
       res.data = data
-      typeof success === 'function' && success(res)
-      typeof complete === 'function' && complete(res)
+      isFunction(success) && success(res)
+      isFunction(complete) && complete(res)
       return res
     })
     .catch(err => {
-      typeof fail === 'function' && fail(err)
-      typeof complete === 'function' && complete(res)
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer)
+        timeoutTimer = null
+      }
+      isFunction(fail) && fail(err)
+      isFunction(complete) && complete(res)
       err.statusCode = res.statusCode
       err.errMsg = err.message
       return Promise.reject(err)
@@ -134,3 +151,4 @@ const link = new Link(taroInterceptor)
 
 export const request: typeof Taro.request = link.request.bind(link)
 export const addInterceptor = link.addInterceptor.bind(link)
+export const cleanInterceptors = link.cleanInterceptors.bind(link)

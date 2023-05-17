@@ -19,9 +19,15 @@ export function run (name: string, presets: string[] = []): IRun {
         path.resolve(__dirname, '../__mocks__', 'presets.ts'),
         ...presets.map(e => path.isAbsolute(e) ? e : path.resolve(__dirname, '../../presets', `${e}.ts`))
       ],
-      plugins: []
+      plugins: [],
+      disableGlobalConfig: !!options.disableGlobalConfig
     })
     kernel.optsPlugins ||= []
+
+    const type = options.type
+    if (typeof type === 'string' && !presets.some(e => e.includes(type))) {
+      kernel.optsPlugins.push(require.resolve(`@tarojs/plugin-platform-${options.type}`))
+    }
 
     await kernel.run({
       name,

@@ -1,5 +1,5 @@
 import { fs } from '@tarojs/helper'
-import { isString } from '@tarojs/shared'
+import { isString, isWebPlatform } from '@tarojs/shared'
 
 import { modifyH5WebpackChain } from './webpack.h5'
 import { modifyMiniWebpackChain } from './webpack.mini'
@@ -25,7 +25,7 @@ export default (ctx: IPluginContext) => {
         return args
       })
 
-    if (process.env.TARO_ENV === 'h5') {
+    if (isWebPlatform()) {
       // H5
       modifyH5WebpackChain(ctx, framework, chain)
     } else {
@@ -57,13 +57,13 @@ export default (ctx: IPluginContext) => {
       prebundleOptions.include ||= []
       prebundleOptions.include = prebundleOptions.include.concat(deps)
       prebundleOptions.exclude ||= []
-      prebundleOptions.exclude.push('mobx') // 依赖会对 webpack 修改，默认排除
+      prebundleOptions.exclude.push(/mobx/) // 依赖会对 webpack 修改，默认排除
       if (prebundleOptions.enable === false) return
 
       const taroReactPlugin: Plugin = {
         name: 'taroReactPlugin',
         setup (build) {
-          build.onLoad({ filter: /taro-h5[\\/]dist[\\/]index/ }, ({ path }) => {
+          build.onLoad({ filter: /taro-h5[\\/]dist[\\/]api[\\/]taro/ }, ({ path }) => {
             const content = fs.readFileSync(path).toString()
             return {
               contents: require('./api-loader')(content)

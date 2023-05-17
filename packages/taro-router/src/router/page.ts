@@ -7,7 +7,7 @@ import { bindPageResize } from '../events/resize'
 import { bindPageScroll } from '../events/scroll'
 import { setHistoryMode } from '../history'
 import { initTabbar } from '../tabbar'
-import { addLeadingSlash, routesAlias, stripBasename, stripTrailing } from '../utils'
+import { addLeadingSlash, getCurrentPage, getHomePage, routesAlias, stripBasename, stripTrailing } from '../utils'
 import stacks from './stack'
 
 import type { PageConfig, RouterAnimate } from '@tarojs/taro'
@@ -31,8 +31,13 @@ export default class PageHandler {
 
   constructor (config: SpaRouterConfig) {
     this.config = config
-    this.homePage = this.getHomePage()
+    this.homePage = getHomePage(this.routes[0].path, this.basename, this.customRoutes, this.config.entryPagePath)
     this.mount()
+  }
+
+  get currentPage () {
+    const routePath = getCurrentPage(this.routerMode, this.basename)
+    return routePath === '/' ? this.homePage : routePath
   }
 
   get appId () { return this.config.appId ||'app' }
@@ -88,14 +93,6 @@ export default class PageHandler {
     return !!pagePath && this.tabBarList.some(t => stripTrailing(t.pagePath) === pagePath)
   }
 
-  getHomePage () {
-    const routePath = addLeadingSlash(stripBasename(this.routes[0].path, this.basename))
-    const alias = Object.entries(this.customRoutes).find(
-      ([key]) => key === routePath
-    )?.[1] || routePath
-    return this.config.entryPagePath || (typeof alias === 'string' ? alias : alias[0]) || this.basename
-  }
-
   isSamePage (page?: PageInstance | null) {
     const routePath = stripBasename(this.pathname, this.basename)
     const pagePath = stripBasename(page?.path, this.basename)
@@ -112,7 +109,7 @@ export default class PageHandler {
     } else {
       search = location.search
     }
-    return search.substr(1)
+    return search.substring(1)
   }
 
   getQuery (stamp = '', search = '', options: Record<string, unknown> = {}) {
@@ -132,10 +129,13 @@ export default class PageHandler {
 
     const appId = this.appId
     let app = document.getElementById(appId)
+    let isPosition = true
     if (!app) {
       app = document.createElement('div')
       app.id = appId
+      isPosition = false
     }
+    const appWrapper = app?.parentNode || app?.parentElement || document.body
     app.classList.add('taro_router')
 
     if (this.tabBarList.length > 1) {
@@ -146,14 +146,18 @@ export default class PageHandler {
       const panel = document.createElement('div')
       panel.classList.add('taro-tabbar__panel')
 
-      panel.appendChild(app)
+      panel.appendChild(app.cloneNode(true))
       container.appendChild(panel)
 
-      document.body.appendChild(container)
+      if (!isPosition) {
+        appWrapper.appendChild(container)
+      } else {
+        appWrapper.replaceChild(container, app)
+      }
 
       initTabbar(this.config)
     } else {
-      document.body.appendChild(app)
+      if (!isPosition) appWrapper.appendChild(app)
     }
   }
 
@@ -161,12 +165,18 @@ export default class PageHandler {
     const pageEl = this.getPageContainer(page)
     if (pageEl && !pageEl?.['__isReady']) {
       const el = pageEl.firstElementChild
-      el?.['componentOnReady']?.()?.then(() => {
-        requestAnimationFrame(() => {
-          page.onReady?.()
-          pageEl!['__isReady'] = true
+      const componentOnReady = el?.['componentOnReady']
+      if (componentOnReady) {
+        componentOnReady?.().then(() => {
+          requestAnimationFrame(() => {
+            page.onReady?.()
+            pageEl!['__isReady'] = true
+          })
         })
-      })
+      } else {
+        page.onReady?.()
+        pageEl!['__isReady'] = true
+      }
       onLoad && (pageEl['__page'] = page)
     }
   }
@@ -211,6 +221,9 @@ export default class PageHandler {
       const pageEl = this.getPageContainer(page)
       pageEl?.classList.remove('taro_page_stationed')
       pageEl?.classList.remove('taro_page_show')
+      if (pageEl) {
+        pageEl.style.zIndex = '1'
+      }
 
       this.unloadTimer = setTimeout(() => {
         this.unloadTimer = null

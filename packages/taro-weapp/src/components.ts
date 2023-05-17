@@ -73,10 +73,12 @@ export const components = {
     'safe-password-salt': '',
     'safe-password-custom-hash': '',
     'auto-fill': _empty,
-    bindKeyboardHeightChange: _empty
+    bindKeyboardHeightChange: _empty,
+    bindNicknameReview: _empty
   },
   Picker: {
-    'header-text': _empty
+    'header-text': _empty,
+    'level': 'region'
   },
   PickerView: {
     'immediate-change': _false,
@@ -97,6 +99,8 @@ export const components = {
     bindKeyboardHeightChange: _empty
   },
   ScrollView: {
+    'type': "'list'",
+    'event-passive': _false,
     'enable-flex': _false,
     'scroll-anchoring': _false,
     'refresher-enabled': _false,
@@ -109,14 +113,33 @@ export const components = {
     'show-scrollbar': _true,
     'paging-enabled': _false,
     'fast-deceleration': _false,
+    reverse: _false,
+    'cache-extent': _zero,
+    'scroll-into-view-within-extent': _false,
+    'scroll-into-view-alignment': "'start'",
     bindDragStart: _empty,
     bindDragging: _empty,
     bindDragEnd: _empty,
     bindRefresherPulling: _empty,
     bindRefresherRefresh: _empty,
     bindRefresherRestore: _empty,
-    bindRefresherAbort: _empty
+    bindRefresherAbort: _empty,
+    bindScrollStart: _empty,
+    bindScrollEnd: _empty,
+    bindRefresherWillRefresh: _empty,
   },
+  StickySection: {
+    'push-pinned-header': _true,
+  },
+  GridView: {
+    type: "'aligned'",
+    'cross-axis-count': '2',
+    'max-cross-axis-extent': _zero,
+    'main-axis-gap': _zero,
+    'cross-axis-gap': _zero,
+  },
+  ListView: {},
+  StickyHeader: {},
   Swiper: {
     'snap-to-edge': _false,
     'easing-function': "'default'"
@@ -341,4 +364,17 @@ export const components = {
   },
   KeyboardAccessory: {},
   RootPortal: {},
+  ChannelLive: {
+    feedId: _empty,
+    finderUserName: _empty
+  },
+  ChannelVideo: {
+    feedId: _empty,
+    finderUserName: _empty,
+    autoplay: _false,
+    loop: _false,
+    muted: _false,
+    objectFit: "'contain'",
+    bindError: _empty
+  },
 }

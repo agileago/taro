@@ -35,6 +35,15 @@ const apiDiff: IApiDiff = {
       }, {
         old: 'icon',
         new: 'type'
+      }],
+      set: [{
+        key: 'type',
+        value (options) {
+          if (options.type === 'error') {
+            return 'fail'
+          }
+          return options.type
+        }
       }]
     }
   },
@@ -279,10 +288,22 @@ const asyncResultApiDiff = {
         }
       ]
     }
+  },
+  getBLEDeviceServices: {
+    res: {
+      set: [
+        {
+          key: 'services',
+          value (res) {
+            return res.services.map(item => {
+              return { uuid: item.serviceId, isPrimary: item.isPrimary }
+            })
+          }
+        }
+      ]
+    }
   }
 }
-
-const nativeRequest = my.canIUse('request') ? my.request : my.httpRequest
 
 export function request (options) {
   options = options || {}
@@ -323,7 +344,8 @@ export function request (options) {
     options.complete = res => {
       originComplete && originComplete(res)
     }
-
+    // 改为实时获取原生API，防止用户修改原生API后无法同步
+    const nativeRequest = my.canIUse('request') ? my.request : my.httpRequest
     requestTask = nativeRequest(options)
   })
   p.abort = (cb) => {
