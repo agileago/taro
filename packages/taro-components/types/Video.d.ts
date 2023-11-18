@@ -192,8 +192,9 @@ interface VideoProps extends StandardProps {
   nativeProps?: Record<string, unknown>
   /** 是否展示底部进度条
    * @supported weapp
+   * @default true
    */
-  showBottomProgress?: string
+  showBottomProgress?: boolean
   /** 是否在小窗模式下显示播放进度
    * @supported weapp
    */
@@ -205,7 +206,7 @@ interface VideoProps extends StandardProps {
   /** 是否是 DRM 视频源
    * @supported weapp
    */
-  isDrm?: string
+  isDrm?: boolean
   /** DRM 设备身份认证 url，仅 is-drm 为 true 时生效 (Android)
    * @supported weapp
    */
@@ -235,7 +236,7 @@ interface VideoProps extends StandardProps {
    *
    * @supported alipay, jd
    */
-  mobilenetHintType?: string
+  mobilenetHintType?: number
   /** 浮窗设置。暂时不支持全局浮窗。
    * 可选值：
    *
@@ -487,6 +488,14 @@ declare namespace VideoProps {
     currentTime: number
     /** 持续时间 */
     duration: number
+    /** 用户实际观看时长
+     * @supported alipay
+     */
+    userPlayDuration: number
+    /** 视频总时长
+     * @supported alipay
+     */
+    videoDuration: number
   }
   interface onFullscreenChangeEventDetail {
     /** 方向 */
