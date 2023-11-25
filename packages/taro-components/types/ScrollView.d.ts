@@ -1,5 +1,5 @@
 import { ComponentType } from 'react'
-import { StandardProps, CommonEventFunction, BaseEventOrigFunction } from './common'
+import { BaseEventOrigFunction, CommonEventFunction, StandardProps } from './common'
 interface ScrollViewProps extends StandardProps {
   /** 允许横向滚动
    * @default false
@@ -130,7 +130,7 @@ interface ScrollViewProps extends StandardProps {
    * @supported weapp
    * @default false
    */
-  enablePassive?: string
+  enablePassive?: boolean
   /** 渲染模式
    * list - 列表模式。只会渲染在屏节点，会根据直接子节点是否在屏来按需渲染，若只有一个直接子节点则性能会退化
    * custom - 自定义模式。只会渲染在屏节点，子节点可以是 sticky-section list-view grid-view 等组件
@@ -157,7 +157,7 @@ interface ScrollViewProps extends StandardProps {
    * center - 目标节点显示在视口中间
    * end - 目标节点显示在视口结束处
    * nearest - 目标节点在就近的视口边缘显示，若节点已在视口内则不触发滚动
-   * @supported weapp
+   * @supported weapp, h5
    * @default 'start'
    */
   scrollIntoViewAlignment?: 'start' | 'center' | 'end' | 'nearest'
@@ -251,6 +251,30 @@ declare namespace ScrollViewProps {
     scrollTop: number
     /** 滚动速度 */
     velocity: number
+  }
+  interface RefresherStatusChange {
+    status: RefreshStatus
+    dy: number
+  }
+  const enum RefreshStatus {
+    // 空闲
+    Idle,
+    // 超过下拉刷新阈值，同 bind:refresherwillRefresh 触发时机
+    CanRefresh,
+    // 下拉刷新，同 bind:refresherrefresh 触发时机
+    Refreshing,
+    // 下拉刷新完成，同 bind:refresherrestore 触发时机
+    Completed,
+    // 下拉刷新失败
+    Failed,
+    // 超过下拉二级阈值
+    CanTwoLevel,
+    // 开始打开二级
+    TwoLevelOpening,
+    // 打开二级
+    TwoLeveling,
+    // 开始关闭二级
+    TwoLevelClosing,
   }
 }
 /** 可滚动视图区域。使用竖向滚动时，需要给scroll-view一个固定高度，通过 WXSS 设置 height。组件属性的长度单位默认为 px
